@@ -1321,13 +1321,4 @@ RunService.RenderStepped:Connect(function()
         end
         
         for model, billboard in pairs(distanceCache) do
-            if not model.Parent or not model:FindFirstChild("Head") then
-                billboard:Destroy()
-                distanceCache[model] = nil
-            end
-        end
-    else
-        for model, billboard in pairs(distanceCache) do billboard:Destroy() end
-        distanceCache = {}
-    end
-end)
+            if not model.Parent or not model:FindFirstChild
