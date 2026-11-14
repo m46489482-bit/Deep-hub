@@ -3,7 +3,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
-local TweenService = gaйme:GetService("TweenService")
+local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 local VirtualUser = game:GetService("VirtualUser")
 local Stats = game:GetService("Stats")
@@ -490,7 +490,7 @@ local credits = Instance.new("TextLabel"); credits.Size = UDim2.new(1, 0, 0, 60)
 local changelogFrame = Instance.new("Frame"); changelogFrame.Size = UDim2.new(1, 0, 0, 85); changelogFrame.BackgroundColor3 = Theme.ElementBg; changelogFrame.BackgroundTransparency = 0.2; changelogFrame.ZIndex = 4; changelogFrame.LayoutOrder = 4; changelogFrame.Parent = homePage
 local clc = Instance.new("UICorner"); clc.CornerRadius = UDim.new(0, 6); clc.Parent = changelogFrame
 local clTitle = Instance.new("TextLabel"); clTitle.Size = UDim2.new(1, -10, 0, 20); clTitle.Position = UDim2.new(0, 5, 0, 5); clTitle.BackgroundTransparency = 1; clTitle.Text = "📝 Что нового:"; clTitle.TextColor3 = Theme.Accent; clTitle.Font = Enum.Font.GothamSemibold; clTitle.TextSize = 12; clTitle.TextXAlignment = Enum.TextXAlignment.Left; clTitle.ZIndex = 4; clTitle.Parent = changelogFrame
-local clText = Instance.new("TextLabel"); clText.Size = UDim2.new(1, -10, 0, 55); clText.Position = UDim2.new(0, 5, 0, 25); clText.BackgroundTransparency = 1; clText.Text = "• Настройка размера меню\n• Ники и HP в ESP\n• Новая анимация загрузки\n• Улучшена стабильность"; clText.TextColor3 = Theme.SubText; clText.Font = Enum.Font.Gotham; clText.TextSize = 10; clText.TextXAlignment = Enum.TextXAlignment.Left; clText.TextYAlignment = Enum.TextYAlignment.Top; clText.ZIndex = 4; clText.Parent = changelogFrame
+local clText = Instance.new("TextLabel"); clText.Size = UDim2.new(1, -10, 0, 55); clText.Position = UDim2.new(0, 5, 0, 25); clText.BackgroundTransparency = 1; clText.Text = "• Настройка размера меню\n• Ники и HP в ESP\n• Аим видит только открытых врагов\n• Новая анимация загрузки"; clText.TextColor3 = Theme.SubText; clText.Font = Enum.Font.Gotham; clText.TextSize = 10; clText.TextXAlignment = Enum.TextXAlignment.Left; clText.TextYAlignment = Enum.TextYAlignment.Top; clText.ZIndex = 4; clText.Parent = changelogFrame
 
 local quickSupportFrame = Instance.new("Frame"); quickSupportFrame.Size = UDim2.new(1, 0, 0, 45); quickSupportFrame.BackgroundColor3 = Theme.ElementBg; quickSupportFrame.BackgroundTransparency = 0.2; quickSupportFrame.ZIndex = 4; quickSupportFrame.LayoutOrder = 5; quickSupportFrame.Parent = homePage
 local qsfc = Instance.new("UICorner"); qsfc.CornerRadius = UDim.new(0, 6); qsfc.Parent = quickSupportFrame
@@ -705,7 +705,7 @@ local function setVis(v)
     if v then 
         mainFrame.Visible = true
         mainFrame.Size = UDim2.new(0, 0, 0, 0)
-        mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0) -- Строго по центру!
+        mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
         TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 400, 0, 280)}):Play()
     else 
         local tw = TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
@@ -727,7 +727,7 @@ local fovStroke = Instance.new("UIStroke"); fovStroke.Color = Theme.Accent; fovS
 
 local function getNPCs()
     local t = {}
-    for _, v in pairs(Workspace:GetChildren()) do
+    for _, v in pairs(Workspace:GetDescendants()) do
         if v:IsA("Model") and v:FindFirstChild("Humanoid") and v:FindFirstChild("Head") then
             if v.Humanoid.Health > 0 and v ~= player.Character and not Players:GetPlayerFromCharacter(v) then
                 table.insert(t, v)
@@ -739,20 +739,33 @@ end
 local targets = {}
 task.spawn(function() while task.wait(1) do targets = getNPCs() end end)
 
+-- ИСПРАВЛЕННЫЙ АИМБОТ (ТОЛЬКО ОТКРЫТЫЕ ЦЕЛИ)
 local function getTarget(fov, dist)
-    local center = camera.ViewportSize / 2; local best, minD = nil, fov
+    local center = camera.ViewportSize / 2
+    local best, minD = nil, fov
     local myPos = player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart.Position or camera.CFrame.Position
+    
     for _, n in ipairs(targets) do
         local h = n:FindFirstChild("Head")
         if h and h.Parent and (h.Position - myPos).Magnitude <= dist then
             local pos, on = camera:WorldToViewportPoint(h.Position)
-            if on then
+            if on and pos.Z > 0 then
                 local d = (Vector2.new(pos.X, pos.Y) - center).Magnitude
                 if d < minD then
+                    local rayOrigin = camera.CFrame.Position
+                    local rayDirection = h.Position - rayOrigin
+                    
                     local rayParams = RaycastParams.new()
-                    rayParams.FilterDescendantsInstances = {player.Character, n}; rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                    local ray = Workspace:Raycast(camera.CFrame.Position, h.Position - camera.CFrame.Position, rayParams)
-                    if not ray then minD = d; best = n end
+                    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                    rayParams.FilterDescendantsInstances = {player.Character, n} 
+                    rayParams.IgnoreWater = true
+                    
+                    local rayResult = Workspace:Raycast(rayOrigin, rayDirection, rayParams)
+                    
+                    if not rayResult then 
+                        minD = d
+                        best = n 
+                    end
                 end
             end
         end
@@ -871,13 +884,14 @@ task.spawn(function()
                 local h = n:FindFirstChild("Head")
                 if h and (h.Position - myPos).Magnitude <= S.ESPDist then
                     cur[n] = true
-                    if not espC[n] then local hl = Instance.new("Highlight", n); hl.FillColor = getColor(n); hl.OutlineColor = Color3.new(1,1,1); hl.FillTransparency = 0.6; espC[n] = hl end
+                    if not espC[n] then local hl = Instance.new("Highlight", n); hl.FillColor = getColor(n); hl.OutlineColor = Color3.new(1,1,1); hl.FillTransparency = 0.6; hl.Adornee = n; espC[n] = hl end
                     
                     if not espTags[n] then
                         local bb = Instance.new("BillboardGui", h)
                         bb.Size = UDim2.new(0, 100, 0, 35)
                         bb.StudsOffset = Vector3.new(0, 1.2, 0)
                         bb.AlwaysOnTop = true
+                        bb.Adornee = h
                         
                         local nameLbl = Instance.new("TextLabel", bb)
                         nameLbl.Size = UDim2.new(1, 0, 0.5, 0)
@@ -960,102 +974,34 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ================= ИСПРАВЛЕННАЯ АНИМАЦИЯ ЗАГРУЗКИ =================
+-- ================= ПРОСТАЯ АНИМАЦИЯ ЗАГРУЗКИ =================
 local introGui = Instance.new("ScreenGui", CoreGui)
 introGui.Name = "IntroAnim"; introGui.ResetOnSpawn = false; introGui.IgnoreGuiInset = true
 
-local introLine = Instance.new("Frame", introGui)
-introLine.Size = UDim2.new(0, 4, 0, 0)
-introLine.Position = UDim2.new(0.5, 0, 0.5, 0)
-introLine.AnchorPoint = Vector2.new(0.5, 0.5)
-introLine.BackgroundColor3 = Theme.Accent
-introLine.BorderSizePixel = 0
-local lineCorner = Instance.new("UICorner", introLine)
-lineCorner.CornerRadius = UDim.new(1, 0)
-
 local introText = Instance.new("TextLabel", introGui)
-introText.Size = UDim2.new(0, 400, 0, 80)
-introText.Position = UDim2.new(0.5, 10, 0.5, 0)
-introText.AnchorPoint = Vector2.new(0, 0.5) 
+introText.Size = UDim2.new(1, 0, 1, 0)
 introText.BackgroundTransparency = 1
 introText.Text = "DEEP HUB"
 introText.TextColor3 = Theme.Accent
 introText.Font = Enum.Font.GothamBold
-introText.TextSize = 50 
-introText.TextXAlignment = Enum.TextXAlignment.Left
-introText.TextTransparency = 1
-
-bgDeco.Visible = false
-fog.Visible = false
-topBar.Visible = false
-sidebar.Visible = false
-contentFrame.Visible = false
+introText.TextSize = 50
+introText.TextTransparency = 1 -- Скрыт в начале
 
 task.spawn(function()
-    task.wait(0.2)
+    task.wait(0.5) -- Небольшая задержка
+    -- Плавное появление
+    TweenService:Create(introText, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
     
-    -- 1. Палочка плавно вытягивается
-    TweenService:Create(introLine, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, 4, 0, 100)}):Play()
-    task.wait(0.5)
-
-    -- 2. ОДНОВРЕМЕННО: Текст летит вправо, Палочка едет влево
-    TweenService:Create(introLine, TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0.5, -135, 0.5, 0) 
-    }):Play()
+    task.wait(1.5) -- Висит 1.5 секунды
     
-    TweenService:Create(introText, TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
-        TextTransparency = 0, 
-        Position = UDim2.new(0.5, -125, 0.5, 0) 
-    }):Play()
+    -- Плавное исчезновение
+    TweenService:Create(introText, TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TextTransparency = 1}):Play()
     
-    task.wait(1.2)
-    task.wait(2) -- Пауза 2 секунды
-
-    -- 3. Превращение в меню (ИЗ ЦЕНТРА ЭКРАНА)
-    local textScale = Instance.new("UIScale", introText)
-    TweenService:Create(introText, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-        Position = UDim2.new(0.5, -125, 0.5, -80), 
-        TextTransparency = 1
-    }):Play()
-    TweenService:Create(textScale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 1.5}):Play()
-
-    TweenService:Create(introLine, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        BackgroundTransparency = 1
-    }):Play()
-
-    -- ВАЖНО: Меню появляется строго по центру (Position 0.5, 0, 0.5, 0)
-    mainFrame.Visible = true
-    mainFrame.Size = UDim2.new(0, 0, 0, 0)
-    mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0) 
-    mainFrame.BackgroundTransparency = 1 
-    
-    TweenService:Create(mainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 400, 0, 280),
-        BackgroundTransparency = 0.1
-    }):Play()
-
-    task.wait(0.3)
-    bgDeco.Visible = true
-    fog.Visible = true
-    topBar.Visible = true
-    sidebar.Visible = true
-    contentFrame.Visible = true
-    
-    for _, child in ipairs(bgDeco:GetChildren()) do
-        if child:IsA("Frame") then
-            local origTrans = child.BackgroundTransparency
-            child.BackgroundTransparency = 1
-            TweenService:Create(child, TweenInfo.new(0.4), {BackgroundTransparency = origTrans}):Play()
-        end
-    end
-    
-    local fogOrigTrans = fog.BackgroundTransparency
-    fog.BackgroundTransparency = 1
-    TweenService:Create(fog, TweenInfo.new(0.4), {BackgroundTransparency = fogOrigTrans}):Play()
-
-    task.wait(0.5)
+    task.wait(1)
     introGui:Destroy()
     
+    -- Показываем меню
     toggleBtn.Visible = true
     wm.Visible = true
 end)
+-- КОНЕЦ СКРИПТА
