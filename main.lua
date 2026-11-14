@@ -959,59 +959,116 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ================= АНИМАЦИЯ ЗАГРУЗКИ =================
+-- ================= НОВАЯ УЛУЧШЕННАЯ АНИМАЦИЯ ЗАГРУЗКИ =================
 local introGui = Instance.new("ScreenGui", CoreGui)
 introGui.Name = "IntroAnim"; introGui.ResetOnSpawn = false; introGui.IgnoreGuiInset = true
 
+-- Палочка
 local introLine = Instance.new("Frame", introGui)
-introLine.Size = UDim2.new(0, 2, 0, 0)
+introLine.Size = UDim2.new(0, 4, 0, 0)
 introLine.Position = UDim2.new(0.5, 0, 0.5, 0)
 introLine.AnchorPoint = Vector2.new(0.5, 0.5)
 introLine.BackgroundColor3 = Theme.Accent
 introLine.BorderSizePixel = 0
+local lineCorner = Instance.new("UICorner", introLine)
+lineCorner.CornerRadius = UDim.new(1, 0)
 
+-- Текст
 local introText = Instance.new("TextLabel", introGui)
-introText.Size = UDim2.new(0, 200, 0, 50)
-introText.Position = UDim2.new(0.5, 0, 0.5, 0)
+introText.Size = UDim2.new(0, 400, 0, 80)
+introText.Position = UDim2.new(0.5, 10, 0.5, 0)
 introText.AnchorPoint = Vector2.new(0, 0.5) 
 introText.BackgroundTransparency = 1
 introText.Text = "DEEP HUB"
 introText.TextColor3 = Theme.Accent
 introText.Font = Enum.Font.GothamBold
-introText.TextSize = 30
+introText.TextSize = 50 -- УВЕЛИЧИЛИ ШРИФТ
 introText.TextXAlignment = Enum.TextXAlignment.Left
 introText.TextTransparency = 1
 
+-- Прячем элементы меню, чтобы они не выскакивали раньше времени
+bgDeco.Visible = false
+fog.Visible = false
+topBar.Visible = false
+sidebar.Visible = false
+contentFrame.Visible = false
+
 task.spawn(function()
     task.wait(0.2)
-    -- Палочка появляется
-    TweenService:Create(introLine, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 2, 0, 40)}):Play()
-    task.wait(0.4)
-
-    -- Буквы вылетают вправо
-    introText.Position = UDim2.new(0.5, 5, 0.5, 0)
-    TweenService:Create(introText, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 0, Position = UDim2.new(0.5, 15, 0.5, 0)}):Play()
+    
+    -- 1. Палочка плавно вытягивается
+    TweenService:Create(introLine, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = UDim2.new(0, 4, 0, 100)}):Play()
     task.wait(0.5)
 
-    -- Палочка и текст отъезжают влево (центрирование)
-    TweenService:Create(introLine, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -55, 0.5, 0)}):Play()
-    TweenService:Create(introText, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -45, 0.5, 0)}):Play()
+    -- 2. ОДНОВРЕМЕННО: Текст летит вправо, Палочка едет влево
+    -- Двигаем палочку влево на 135 пикселей
+    TweenService:Create(introLine, TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, -135, 0.5, 0) 
+    }):Play()
     
-    -- ЖДЕМ РОВНО 2 СЕКУНДЫ
+    -- Двигаем текст вправо (чтобы он оказался по центру экрана)
+    TweenService:Create(introText, TweenInfo.new(1.2, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {
+        TextTransparency = 0, 
+        Position = UDim2.new(0.5, -125, 0.5, 0) 
+    }):Play()
+    
+    -- Ждем завершения разъезда
+    task.wait(1.2)
+
+    -- 3. Пауза ровно 2 секунды
     task.wait(2)
 
-    -- Разрыв и превращение в меню
+    -- 4. Превращение в меню
+    -- Текст улетает вверх и растворяется
     local textScale = Instance.new("UIScale", introText)
-    TweenService:Create(introText, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -45, 0.5, -80), TextTransparency = 1}):Play()
-    TweenService:Create(textScale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 1.5}):Play()
+    TweenService:Create(introText, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Position = UDim2.new(0.5, -125, 0.5, -80), 
+        TextTransparency = 1
+    }):Play()
+    TweenService:Create(textScale, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 1.5}):Play()
 
-    TweenService:Create(introLine, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 400, 0, 280), BackgroundTransparency = 1}):Play()
+    -- Меню начинает расширяться ИЗ ПАЛОЧКИ
+    mainFrame.Visible = true
+    mainFrame.Size = UDim2.new(0, 4, 0, 100)
+    mainFrame.Position = UDim2.new(0.5, -135, 0.5, 0) -- Стартует там, где палочка
+    mainFrame.BackgroundTransparency = 1 -- Прозрачное в начале
     
+    TweenService:Create(mainFrame, TweenInfo.new(0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 400, 0, 280),
+        Position = UDim2.new(0.5, -200, 0.5, -140),
+        BackgroundTransparency = 0.1 -- Проявляется фон меню
+    }):Play()
+
+    -- Палочка растворяется
+    TweenService:Create(introLine, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        BackgroundTransparency = 1
+    }):Play()
+
+    -- Через 0.3 секунды (когда меню уже расширяется) плавно проявляем содержимое
+    task.wait(0.3)
+    bgDeco.Visible = true
+    fog.Visible = true
+    topBar.Visible = true
+    sidebar.Visible = true
+    contentFrame.Visible = true
+    
+    -- Плавное появление фоновых квадратов
+    for _, child in ipairs(bgDeco:GetChildren()) do
+        if child:IsA("Frame") then
+            local origTrans = child.BackgroundTransparency
+            child.BackgroundTransparency = 1
+            TweenService:Create(child, TweenInfo.new(0.4), {BackgroundTransparency = origTrans}):Play()
+        end
+    end
+    
+    -- Плавное появление тумана
+    local fogOrigTrans = fog.BackgroundTransparency
+    fog.BackgroundTransparency = 1
+    TweenService:Create(fog, TweenInfo.new(0.4), {BackgroundTransparency = fogOrigTrans}):Play()
+
     task.wait(0.5)
     introGui:Destroy()
     
-    -- Показываем меню
-    toggleBtn.Visible = true; wm.Visible = true; mainFrame.Visible = true
-    mainFrame.Size = UDim2.new(0, 0, 0, 0)
-    TweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 400, 0, 280)}):Play()
+    toggleBtn.Visible = true
+    wm.Visible = true
 end)
